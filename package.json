@@ -1,12 +1,19 @@
 {
   "name": "crmgraphql",
   "version": "1.0.0",
-  "description": "",
+  "description": "CRM GraphQL Project",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon .",
+    "start": "node ."
   },
   "keywords": [],
   "author": "Richar Urbano",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "apollo-server": "^3.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.14"
+  }
 }
