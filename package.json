@@ -1,6 +1,6 @@
 {
   "name": "crmgraphql",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "CRM GraphQL Project",
   "main": "index.js",
   "scripts": {
