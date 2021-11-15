@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 
 const User = require("../models/User");
 const Product = require("../models/Product");
+const Client = require("../models/Client");
 
 require("dotenv").config({ path: __dirname + "/../.env" });
 
@@ -16,9 +17,9 @@ const createToken = (currentUser, secretKey, expiresIn) => {
 const resolvers = {
     Query: {
         getUser: async (_, { token }) => {
-            const userId = await jwt.verify(token, process.env.SECRET_KEY)
+            const user = await jwt.verify(token, process.env.SECRET_KEY);
 
-            return userId;
+            return user;
         },
 
         getProducts: async () => {
@@ -30,7 +31,6 @@ const resolvers = {
                 console.log(error);
             }
         },
-
         getProduct: async (_, { id }) => {
             try {
                 const product = await Product.findById(id);
@@ -43,6 +43,42 @@ const resolvers = {
             } catch (error) {
                 console.log(error);
             }
+        },
+
+        getClients: async () => {
+            try {
+                const clients = await Client.find({});
+
+                return clients;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+
+        getClientsBySeller: async (_, { }, ctx) => {
+            try {
+                const clients = await Client.find({ seller: ctx.user.id.toString() });
+
+                return clients;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+
+        getClient: async (_, { id }, ctx) => {
+            // Client exist!
+            const client = await Client.findById(id);
+
+            if (!client) {
+                throw new Error("Client not found!");
+            }
+
+            // Client by seller
+            if (client.seller.toString() !== ctx.user.id) {
+                throw new Error("You don't have credentials")
+            }
+
+            return client;
         }
     },
     Mutation: {
@@ -91,6 +127,7 @@ const resolvers = {
             }
 
         },
+
         newProduct: async (_, { input }) => {
             try {
                 const product = new Product(input);
@@ -128,7 +165,69 @@ const resolvers = {
             await Product.findOneAndDelete({ _id: id })
 
             return "Product has been deleted!";
-        }
+        },
+
+        newClient: async (_, { input }, ctx) => {
+            const { email } = input;
+
+            // Client exists
+            const existsClient = await Client.findOne({ email });
+
+            if (existsClient) {
+                throw new Error("Client already exists!")
+            }
+
+            const newClient = await Client(input);
+
+            // Assign seller
+            newClient.seller = ctx.user.id;
+
+            // Save on DB
+            try {
+                const result = await newClient.save();
+
+                return result;
+            } catch (error) {
+                console.log(error)
+            }
+        },
+        updateClient: async (_, { id, input }, ctx) => {
+            // Check If user exist
+            let client = await Client.findById(id);
+
+            if (!client) {
+                throw new Error("Client not found!")
+            }
+
+            // Check If seller is correct
+            if (client.seller.toString() !== ctx.user.id) {
+                throw new Error("You don't have credentials")
+            }
+
+            // Save on DB
+            client = await Client.findOneAndUpdate({ _id: id }, input, { new: true });
+
+            return client;
+        },
+
+        deleteClient: async (_, { id }, ctx) => {
+            // Find Client by id
+            let client = await Client.findById(id);
+
+            if (!client) {
+                throw new Error("Client not found!")
+            }
+
+            // Check If seller is correct
+            if (client.seller.toString() !== ctx.user.id) {
+                throw new Error("You don't have credentials")
+            }
+
+            // Save on DB
+            await Client.findOneAndDelete({ _id: id })
+
+            return "Client has been deleted!";
+        },
     }
 };
 

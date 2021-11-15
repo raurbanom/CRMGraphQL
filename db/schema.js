@@ -22,6 +22,17 @@ const typeDefs = gql`
         created: String
     }
 
+    type Client {
+        id: ID
+        firstName: String
+        lastName: String
+        company: String
+        email: String
+        phone: String
+        created: String
+        seller: ID
+    }
+
     input UserInput {
         firstName: String!
         lastName: String!
@@ -40,6 +51,14 @@ const typeDefs = gql`
         price: Float!
     }
 
+    input ClientInput {
+        firstName: String!
+        lastName: String!
+        company: String!
+        email: String!
+        phone: String
+    }
+
     type Query {
         # Users
         getUser(token: String!): User
@@ -47,6 +66,11 @@ const typeDefs = gql`
         # Products
         getProducts: [Product]
         getProduct(id: ID!): Product
+
+        # Clients
+        getClients: [Client]
+        getClientsBySeller: [Client]
+        getClient(id: ID!): Client
     }
 
     type Mutation {
@@ -58,6 +82,11 @@ const typeDefs = gql`
         newProduct(input: ProductInput): Product
         updateProduct(id: ID!, input: ProductInput): Product
         deleteProduct(id: ID!): String
+
+        # Clients
+        newClient(input: ClientInput): Client
+        updateClient(id: ID!, input: ClientInput): Client
+        deleteClient(id: ID!): String
     }
 `;
 
