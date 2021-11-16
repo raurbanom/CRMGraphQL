@@ -175,6 +175,14 @@ const resolvers = {
 
             return sellerList;
         },
+
+        searchProduct: async (_, { query }) => {
+            const productList = await Product.find({
+                $text: { $search: query }
+            }).limit(10);
+
+            return productList;
+        }
     },
     Mutation: {
         newUser: async (_, { input }) => {

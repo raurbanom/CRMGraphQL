@@ -125,6 +125,7 @@ const typeDefs = gql`
         # Advanced Searches
         topClients: [TopClient]
         topSellers: [TopSeller]
+        searchProduct(query: String!): [Product]
     }
 
     type Mutation {
