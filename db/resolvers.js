@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Product = require("../models/Product");
 const Client = require("../models/Client");
+const Order = require("../models/Order");
 
 require("dotenv").config({ path: __dirname + "/../.env" });
 
@@ -79,7 +80,101 @@ const resolvers = {
             }
 
             return client;
-        }
+        },
+
+        getOrders: async () => {
+            try {
+                const orderList = await Order.find({});
+
+                return orderList;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+        getOrdersBySeller: async (_, { }, ctx) => {
+            try {
+                const orderList = await Order.find({ seller: ctx.user.id.toString() });
+
+                return orderList;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+        getOrder: async (_, { id }, ctx) => {
+            // Check If Order exist!
+            const order = await Order.findById(id);
+
+            if (!order) {
+                throw new Error("Order not found!");
+            }
+
+            // Check the Order by seller
+            if (order.seller.toString() !== ctx.user.id) {
+                throw new Error("You don't have credentials")
+            }
+
+            return order;
+        },
+
+        getOrderByState: async (_, { state }, ctx) => {
+            try {
+                const orderList = await Order.find({
+                    seller: ctx.user.id.toString(),
+                    state: state
+                });
+
+                return orderList;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+
+        topClients: async () => {
+            const clientList = await Order.aggregate([{
+                $match: { state: "COMPLETED" }
+            }, {
+                $group: {
+                    _id: "$client",
+                    total: { $sum: "$total" }
+                }
+            }, {
+                $lookup: {
+                    from: "clients",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "client"
+                }
+            }, {
+                $limit: 10
+            }, {
+                $sort: { total: -1 }
+            }]);
+
+            return clientList;
+        },
+        topSellers: async () => {
+            const sellerList = await Order.aggregate([{
+                $match: { state: "COMPLETED" }
+            }, {
+                $group: {
+                    _id: "$seller",
+                    total: { $sum: "$total" }
+                }
+            }, {
+                $lookup: {
+                    from: "users",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "seller"
+                }
+            }, {
+                $limit: 5
+            }, {
+                $sort: { total: -1 }
+            }]);
+
+            return sellerList;
+        },
     },
     Mutation: {
         newUser: async (_, { input }) => {
@@ -223,11 +318,114 @@ const resolvers = {
                 throw new Error("You don't have credentials")
             }
 
-            // Save on DB
+            // Delete on DB
             await Client.findOneAndDelete({ _id: id })
 
             return "Client has been deleted!";
         },
+
+        newOrder: async (_, { input }, ctx) => {
+            const { client } = input;
+
+            // Check If client exist
+            const existClient = await Client.findById(client);
+
+            if (!existClient) {
+                throw new Error("Client not found!");
+            }
+
+            // Check If seller is correct
+            if (existClient.seller.toString() !== ctx.user.id) {
+                throw new Error("You don't have credentials");
+            }
+
+            // Check the stock
+            for await (const item of input.orderDetail) {
+                const { id } = item;
+                const product = await Product.findById(id);
+
+                if (item.quantity > product.stock) {
+                    throw new Error(`The product "${product.name}" exceeds the available quantity`)
+                } else {
+                    product.stock -= item.quantity;
+
+                    await product.save();
+                }
+            }
+
+            // Create new Order
+            let newOrder = new Order(input);
+
+            // Assign seller
+            newOrder.seller = ctx.user.id;
+
+            // Save on DB
+            const result = await newOrder.save();
+
+            return result;
+        },
+
+        updateOrder: async (_, { id, input }, ctx) => {
+            const { client } = input;
+
+            // Check If Order exist
+            const existOrder = await Order.findById(id);
+
+            if (!existOrder) {
+                throw new Error("Order not found!");
+            }
+
+            // Check If Client exist
+            const existClient = await Client.findById(client);
+
+            if (!existClient) {
+                throw new Error("Client not found!");
+            }
+
+            // Check If Seller is valid
+            if (existClient.seller.toString() !== ctx.user.id) {
+                throw new Error("You don't have credentials");
+            }
+
+            // Check stock
+            if (input.orderDetail) {
+                for await (const item of input.orderDetail) {
+                    const { id } = item;
+                    const product = await Product.findById(id);
+
+                    if (item.quantity > product.stock) {
+                        throw new Error(`The product "${product.name}" exceeds the available quantity`)
+                    } else {
+                        product.stock -= item.quantity; // Review stock
+
+                        await product.save();
+                    }
+                }
+            }
+
+            // Save on DB
+            const result = await Order.findOneAndUpdate({ _id: id }, input, { new: true });
+
+            return result;
+        },
+        deleteOrder: async (_, { id }, ctx) => {
+            // Find Order by id
+            let order = await Order.findById(id);
+
+            if (!order) {
+                throw new Error("Order not found!")
+            }
+
+            // Check If seller is correct
+            if (order.seller.toString() !== ctx.user.id) {
+                throw new Error("You don't have credentials")
+            }
+
+            // Delete on DB
+            await Order.findOneAndDelete({ _id: id })
+
+            return "Order has been deleted!";
+        }
     }
 };
 
