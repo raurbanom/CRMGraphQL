@@ -327,7 +327,7 @@ const resolvers = {
             // Delete on DB
             await Client.findOneAndDelete({ _id: id })
 
-            return "Client has been deleted!";
+            return "The Client has been deleted!";
         },
 
         newOrder: async (_, { input }, ctx) => {
